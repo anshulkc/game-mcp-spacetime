@@ -12,6 +12,8 @@ import {
   Schedule,
   Schema,
 } from "effect"
+import { connectToSpacetimeDB, SpacetimeConfigLive } from "./connection_spacetime.js"
+
 
 const DatabaseName = Schema.String.annotations({
     description: "The name of the database module",
@@ -132,4 +134,88 @@ const ToolkitLayer = toolkit.toLayer(
         )
     )
 
-    
+    // included some caching here so that lookup calls aren't repeated if made in a short period of time
+    // makes new cache
+
+    const dbCache = yield* Cache.make({
+        // Use the httpUri from SpacetimeConfigLive (from connection_spacetime)
+        lookup: (db_name) =>
+            Effect.gen(function* () {
+                const config = yield* SpacetimeConfigLive;
+                const response = yield* http.get(`${config.httpUri}/api/v1/database/${db_name}`);
+                const databases = yield* HttpClientResponse.schemaBodyJson(Schema.Array(Schema.Object))(response);
+                // Find the database metadata for the requested db_name
+                const metadata = databases.find(db => db.name === db_name);
+                if (!metadata) {
+                    return yield* Effect.fail(new Error(`Database ${db_name} not found`));
+                }
+                return metadata;
+            }),
+        capacity: 100, // max number of databases returned (most recent)
+        timeToLive: Duration.minutes(30), // cache expires after 30 minutes
+    })
+    return toolkit.of({
+        // Get database interface
+        get_database_interface: Effect.fn(function* ({ db_name, table_name, reducer_name }) {
+          const metadata = yield* dbCache.get(db_name)
+          
+          if (table_name) {
+            const table = metadata.tables.find(t => t.name === table_name)
+            if (!table) {
+                return yield* Effect.fail(new Error(`Table ${table_name} not found`))
+            }
+            return table
+          }
+          
+          if (reducer_name) {
+            const reducer = metadata.reducers.find(r => r.name === reducer_name)
+            if (!reducer) return yield* Effect.fail(new Error(`Reducer ${reducer_name} not found`))
+            return reducer
+          }
+          
+          return metadata
+        }),
+  
+        // Query database table
+        query_table: Effect.fn(function* ({ db_name, table_name, filter }) {
+          const whereClause = Object.entries(filter)
+            .map(([key, value]) => {
+              const val = typeof value === 'string' ? `'${value}'` : value
+              return `${key} = ${val}`
+            })
+            .join(' AND ')
+          
+          const sql = `SELECT * FROM "${table_name}"${whereClause ? ` WHERE ${whereClause}` : ''}`
+          
+          const response = yield* http.post(
+            `${SPACETIME_API_BASE}/${db_name}/sql`,
+            {
+              body: JSON.stringify({ sql }),
+              headers: { "Content-Type": "application/json" }
+            }
+          )
+          
+          return yield* HttpClientResponse.schemaBodyJson(Schema.Array(Schema.Object))(response)
+        }),
+  
+        // Get database status
+        get_database_status: Effect.fn(function* ({ db_name }) {
+          const response = yield* http.get(`${SPACETIME_API_BASE}/${db_name}`)
+          const data = yield* HttpClientResponse.schemaBodyJson(Schema.Object)(response)
+          
+          return {
+            identity: data.identity,
+            address: data.address,
+            names: data.names,
+            schema_hash: data.schema?.hash || "unknown"
+          }
+        })
+      })
+    })
+  ).pipe(
+    Layer.provide(NodeHttpClient.layerUndici)
+  )
+  
+  export const SpacetimeDBTools = McpServer.toolkit(toolkit).pipe(
+    Layer.provide(ToolkitLayer)
+  )
