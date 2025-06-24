@@ -1,6 +1,11 @@
 {
   "dependencies": {
-    "effect": "^3.16.8"
+    "@clockworklabs/spacetimedb-sdk": "^1.2.0",
+    "@effect/platform": "^0.85.2",
+    "@effect/schema": "^0.75.5",
+    "@modelcontextprotocol/sdk": "^1.13.0",
+    "effect": "^3.16.8",
+    "zod": "^3.25.67"
   },
   "devDependencies": {
     "@types/node": "^24.0.3"

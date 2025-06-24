@@ -28,7 +28,14 @@
     "changeset-publish": "pnpm build && TEST_DIST= pnpm vitest && changeset publish"
   },
   "dependencies": {
-    "effect": "latest"
+    "@clockworklabs/spacetimedb-sdk": "^1.2.0",
+    "@effect/ai": "^0.19.4",
+    "@effect/platform": "^0.85.2",
+    "@effect/platform-node": "^0.86.5",
+    "@effect/schema": "^0.75.5",
+    "@modelcontextprotocol/sdk": "^1.13.0",
+    "effect": "latest",
+    "zod": "^3.25.67"
   },
   "devDependencies": {
     "@babel/cli": "^7.24.8",
