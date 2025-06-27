@@ -1,9 +1,10 @@
-import { AiTool, AiToolkit, McpServer } from "@effect/ai"
+import { AiError, AiTool, AiToolkit, McpServer } from "@effect/ai"
 import { HttpClient, HttpClientResponse, Path } from "@effect/platform"
 import { NodeHttpClient, NodePath } from "@effect/platform-node"
 import {
   Array,
   Cache,
+  Data,
   Duration,
   Effect,
   Layer,
@@ -12,7 +13,14 @@ import {
   Schedule,
   Schema,
 } from "effect"
-import { connectToSpacetimeDB, SpacetimeConfigLive } from "./connection_spacetime.js"
+import { SpacetimeConfigTag } from "./connection_spacetime.js"
+
+class AiError extends Data.TaggedError("AiError")<{
+    readonly code:
+      | "ParseError"
+    readonly detail?: unknown        // optional structured payload
+}> {}
+
 
 
 const DatabaseName = Schema.String.annotations({
@@ -29,6 +37,15 @@ const ReducerName = Schema.String.annotations({
 
 const FilterObject = Schema.Record({ key: Schema.String, value: Schema.Unknown }).annotations({
     description: "Filter object with string keys and unknown values for table queries",
+})
+
+const DatabaseMetaDataSchema = Schema.Struct({
+    database_identity: Schema.String,
+    owner_identity: Schema.String,
+    host_type: Schema.String,
+    initial_program: Schema.String
+}).annotations({
+    description: "Metadata of a database module for get_database_status",
 })
 
 const DatabaseStatus = Schema.Struct({
@@ -66,8 +83,8 @@ const DatabaseStatus = Schema.Struct({
   })
 
   const DatabaseInterface = Schema.Struct({
-    tables: Schema.Array(TableSchema),
-    reducers: Schema.Array(ReducerSignature)
+    tables: Schema.String,
+    reducers: Schema.String
   }).annotations({
     description: "Database interface for get_database_interface",
   })
@@ -77,7 +94,7 @@ const DatabaseStatus = Schema.Struct({
   const toolkit = AiToolkit.make(
     AiTool.make("list_databases", {
       description: "Listing all available database modules on a connected spacetimeDB instance (different servers for different regions)",
-      success: Schema.Array(DatabaseName),
+      success: Schema.String,
       failure: Schema.String,
       parameters: {},
     })
@@ -126,28 +143,43 @@ AiTool.make("query_table", {
 
 const ToolkitLayer = toolkit.toLayer(
     Effect.gen(function* () {
-        const http = yield* HttpClient.HttpClient.pipe(
-            HttpClient.filterStatusOk,
-            HttpClient.retry(Schedule.spaced(distanceDuration.seconds(3)).pipe(
-                Schedule.compose(Schedule.recurs(3))
-            )
+      const raw = yield* HttpClient.HttpClient
+      const http = raw.pipe(
+        HttpClient.filterStatusOk,
+        HttpClient.retry(
+          Schedule.spaced(Duration.seconds(3)).pipe(
+            Schedule.compose(Schedule.recurs(3))
+          )
         )
-    )
+      )
+
+
 
     // included some caching here so that lookup calls aren't repeated if made in a short period of time
     // makes new cache
 
+    
+    // cache for the expensive database metadata lookup
     const dbCache = yield* Cache.make({
         // Use the httpUri from SpacetimeConfigLive (from connection_spacetime)
-        lookup: (db_name) =>
+        lookup: (db_name?: string) =>
             Effect.gen(function* () {
-                const config = yield* SpacetimeConfigLive;
-                const response = yield* http.get(`${config.httpUri}/api/v1/database/${db_name}`);
-                const databases = yield* HttpClientResponse.schemaBodyJson(Schema.Array(Schema.Object))(response);
+                const config = yield* SpacetimeConfigTag;
+
+                if (db_name == null) {
+                    const response = yield* http.get(`${config.httpUri}/v1/database`);
+                    if (response.status !== 200) {
+                        return yield* Effect.fail(new AiError({ code: "ParseError", detail: "Database not found" }));
+                    }
+                    const databases = yield* HttpClientResponse.schemaBodyJson(Schema.String)(response);
+                    return databases;
+                }
+
+                const response = yield* http.get(`${config.httpUri}/v1/database/${db_name}`);
+                const metadata = yield* HttpClientResponse.schemaBodyJson(Schema.String)(response);
                 // Find the database metadata for the requested db_name
-                const metadata = databases.find(db => db.name === db_name);
                 if (!metadata) {
-                    return yield* Effect.fail(new Error(`Database ${db_name} not found`));
+                    return yield* Effect.fail(new AiError({ code: "InvalidRequest", detail: "Database not found" }));
                 }
                 return metadata;
             }),
@@ -155,8 +187,12 @@ const ToolkitLayer = toolkit.toLayer(
         timeToLive: Duration.minutes(30), // cache expires after 30 minutes
     })
     return toolkit.of({
+
+        // list_databases: Listing all available database modules on a connected spacetimeDB instance
+        list_databases: () => dbCache.get(undefined).pipe(Effect.map(JSON.stringify)),
         // Get database interface
         get_database_interface: Effect.fn(function* ({ db_name, table_name, reducer_name }) {
+        const config = yield* SpacetimeConfigTag;
           const metadata = yield* dbCache.get(db_name)
           
           if (table_name) {
@@ -219,3 +255,6 @@ const ToolkitLayer = toolkit.toLayer(
   export const SpacetimeDBTools = McpServer.toolkit(toolkit).pipe(
     Layer.provide(ToolkitLayer)
   )
+
+
+  
