@@ -7,6 +7,10 @@ import { z } from "zod";
 import * as Effect from "effect/Effect";
 import * as Context from "effect/Context";
 import * as Exit from "effect/Exit";
+// additional imports for toolkits and configuration
+import { SpacetimeDBTools } from "./spacetimedb.js";
+import { ReferenceDocsTools } from "./temp.js";
+import { SpacetimeConfigTag, SpacetimeConfigLive } from "./connection_spacetime.js";
 
 
 // service: reusable components that provide specifical functionality like logging, database access or configuration
@@ -50,7 +54,13 @@ McpServer.layerStdio({
         stdin: NodeStream.stdin,
         stdout: NodeSink.stdout
 }).pipe(
-        Layer.provide(["sdkfasd;lfkjasd;ljfasd;lfkasd'lfk"]), // fix this part
+        Layer.provide([
+          // provide the spacetime configuration service
+          Layer.succeed(SpacetimeConfigTag, SpacetimeConfigLive),
+          // provide the custom MCP toolkits
+          SpacetimeDBTools,
+          ReferenceDocsTools,
+        ]),
         Layer.provide(Logger.add(Logger.prettyLogger({ stderr: true }))), // stderr logger
         Layer.launch,
         NodeRuntime.runMain,
