@@ -50,52 +50,9 @@ McpServer.layerStdio({
         stdin: NodeStream.stdin,
         stdout: NodeSink.stdout
 }).pipe(
-        Layer.provide(["sdkfasd;lfkjasd;ljfasd;lfkasd'lfk"]),
+        Layer.provide(["sdkfasd;lfkjasd;ljfasd;lfkasd'lfk"]), // fix this part
         Layer.provide(Logger.add(Logger.prettyLogger({ stderr: true }))), // stderr logger
         Layer.launch,
         NodeRuntime.runMain,
 )
 
-
-
-// const server = new McpServer({
-//         name: "spacetime-mcp",
-//         version: "0.0.1",
-//         description: "A MCP server for querying Spacetime DB",
-// })
-
-// server.tool(
-//         "your-tool-name",
-//         "Your tool description",
-//         {
-//           // Define your tool's parameters using Zod schema
-//           parameter: z.string().describe("Parameter description"),
-//         },
-//         async ({ parameter }) => {
-//           // Implement your tool's logic here
-//           return {
-//             content: [
-//               {
-//                 type: "text",
-//                 text: "Your tool's response",
-//               },
-//             ],
-//           };
-//         }
-//       );
-
-// server.tool(
-//         "list-databases",
-//         "Listing all available database modules on a connected spacetimeDB instance (different servers for different regions)",
-//         {},
-//         async () => {
-//                 return {
-//                         content: [
-//                           {
-//                             type: "text",
-//                             text: JSON.stringify([]),
-//                           },
-//                         ],
-//                 }
-
-// )

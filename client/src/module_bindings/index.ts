@@ -55,7 +55,6 @@ export { Message };
 import { User } from "./user_type.ts";
 export { User };
 
-import * as moduleBindings from './module_bindings/index'; 
 
 const REMOTE_MODULE = {
   tables: {

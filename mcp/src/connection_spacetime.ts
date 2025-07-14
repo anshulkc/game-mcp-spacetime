@@ -4,10 +4,11 @@
 import { Effect, Console, Context } from "effect";
 import { DbConnection } from '../../client/src/module_bindings/index.js'
 
+
 export interface SpacetimeConfig {
-    readonly httpUri: Effect.Effect<string>;
-    readonly wsUri: Effect.Effect<string>;
-    readonly moduleName: Effect.Effect<string>;
+    readonly httpUri: string;
+    readonly wsUri: string;
+    readonly moduleName: string;
 }
 
 interface SpacetimeIdentity {
@@ -20,25 +21,34 @@ interface SpacetimeIdentity {
 //     { readonly httpUri: string; readonly wsUri: string; readonly moduleName: string }
 //     >() {}
 
-export const SpacetimeConfigTag = Context.Tag("SpacetimeConfig")<SpacetimeConfig>
+// curried meaning; transformation rewriting a function that rewrites a function that normally expects
+// expects several arguments at one f(a, b, c) into f(a)(b)(c)
+// call supplies one argument and returns a new function thta waits for the next argument
+// until all parameters have been provided
 
+
+export class SpacetimeConfigTag extends
+  Context.Tag("SpacetimeConfig")< // run time identifier
+    SpacetimeConfigTag,                   // SELF  = the key/tag of the context
+    SpacetimeConfig                       // SERVICE - the interface that describes the value stored in the context
+  >() {}
+  
 export const SpacetimeConfigLive: SpacetimeConfig = {
-    httpUri: Effect.succeed(process.env.SPACETIMEDB_HTTP_URI ?? "http://localhost:3000"),
-    wsUri: Effect.succeed(process.env.SPACETIMEDB_HTTP_URI ?? "http://localhost:3000"),
-    moduleName: Effect.succeed(process.env.SPACETIMEDB_HTTP_URI ?? "http://localhost:3000")
+    httpUri: process.env.SPACETIMEDB_HTTP_URI ?? "http://localhost:3000",
+    wsUri: process.env.SPACETIMEDB_HTTP_URI ?? "http://localhost:3000",
+    moduleName: process.env.SPACETIMEDB_HTTP_URI ?? "http://localhost:3000"
 }
 
 export const spacetimeDBConnection = () => {
     return Effect.provideService(
-        connectToSpacetimeDB,
-        SpacetimeConfig,
-        SpacetimeConfigLive
+        connectToSpacetimeDB, // the base program
+        SpacetimeConfigTag, // the key of the context
+        SpacetimeConfigLive // the value stored in the context
     );
 }
 
-
-const fetchSpacetimeIdentity = Effect.gen(function* () {
-    const config = yield* (SpacetimeConfig);
+export const fetchSpacetimeIdentity = Effect.gen(function* () {
+    const config = yield* (SpacetimeConfigTag);
     const response = yield* (
     Effect.tryPromise({
       try: () =>
@@ -53,8 +63,8 @@ const fetchSpacetimeIdentity = Effect.gen(function* () {
   return { identity: data.identity, token: data.token } as SpacetimeIdentity;
 });
 
-const connectToSpacetimeDB = Effect.gen(function* () {
-    const config = yield* (SpacetimeConfig);
+export const connectToSpacetimeDB = Effect.gen(function* () {
+    const config = yield* (SpacetimeConfigTag);
     const {identity, token} = yield* (fetchSpacetimeIdentity);
     
     return yield* (
