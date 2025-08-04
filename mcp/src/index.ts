@@ -1,17 +1,11 @@
 // import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js"
-import { McpServer, McpSchema } from "@effect/ai"
+import { McpServer } from "@effect/ai"
 import { NodeRuntime, NodeSink, NodeStream } from "@effect/platform-node"
 import { Layer, Logger } from "effect"
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
-import { z } from "zod";
 import * as Effect from "effect/Effect";
-import * as Context from "effect/Context";
-import * as Exit from "effect/Exit";
 // additional imports for toolkits and configuration
 import { SpacetimeDBTools } from "./spacetimedb.js";
-import { ReferenceDocsTools } from "./temp.js";
 import { SpacetimeConfigTag, SpacetimeConfigLive } from "./connection_spacetime.js";
-
 
 // service: reusable components that provide specifical functionality like logging, database access or configuration
 // services are stored in a Context, which acts as a repository or container
@@ -34,6 +28,7 @@ import { SpacetimeConfigTag, SpacetimeConfigLive } from "./connection_spacetime.
         // ▼                ▼      ▼
 // Layer<RequirementsOut, Error, RequirementsIn> --> Layer is a function that returns a Layer object
 
+
 // Effect.Effect --> first Effect refers to the module containing core functionality and second Effect is the concrete
 // type representing an effectful computation
 
@@ -48,21 +43,25 @@ import { SpacetimeConfigTag, SpacetimeConfigLive } from "./connection_spacetime.
 // it returns a layer that provides a McpServer instance
 // it also provides a logger layer
 
-McpServer.layerStdio({
-        name: "spacetime-mcp",
-        version: "0.0.1",
-        stdin: NodeStream.stdin,
-        stdout: NodeSink.stdout
-}).pipe(
-        Layer.provide([
-          // provide the spacetime configuration service
-          Layer.succeed(SpacetimeConfigTag, SpacetimeConfigLive),
-          // provide the custom MCP toolkits
-          SpacetimeDBTools,
-          ReferenceDocsTools,
-        ]),
-        Layer.provide(Logger.add(Logger.prettyLogger({ stderr: true }))), // stderr logger
-        Layer.launch,
-        NodeRuntime.runMain,
-)
+// Build the server layer by first creating the toolkit layer and then
+// providing the MCP server implementation together with the required services.
 
+
+const AppLayer = McpServer.layerStdio({
+  name: "spacetime-mcp",
+  version: "0.0.1",
+  stdin: NodeStream.stdin,
+  stdout: NodeSink.stdout,
+}).pipe(
+  Layer.provide([
+    Layer.succeed(SpacetimeConfigTag, SpacetimeConfigLive),
+    SpacetimeDBTools,
+  ]),
+  Layer.provide(Logger.add(Logger.prettyLogger({ stderr: true }))),
+);
+
+const main = Layer.launch(AppLayer).pipe(
+  Effect.provideService(SpacetimeConfigTag, SpacetimeConfigLive),
+);
+
+NodeRuntime.runMain(main);

@@ -8,7 +8,7 @@ import { DbConnection } from '../../client/src/module_bindings/index.js'
 export interface SpacetimeConfig {
     readonly httpUri: string;
     readonly wsUri: string;
-    readonly moduleName: string;
+    readonly identity: string;
 }
 
 interface SpacetimeIdentity {
@@ -35,8 +35,8 @@ export class SpacetimeConfigTag extends
   
 export const SpacetimeConfigLive: SpacetimeConfig = {
     httpUri: process.env.SPACETIMEDB_HTTP_URI ?? "http://localhost:3000",
-    wsUri: process.env.SPACETIMEDB_HTTP_URI ?? "http://localhost:3000",
-    moduleName: process.env.SPACETIMEDB_HTTP_URI ?? "http://localhost:3000"
+    wsUri: process.env.SPACETIMEDB_WS_URI ?? "ws://localhost:3000",
+    identity: process.env.SPACETIMEDB_IDENTITY ?? "c200a7faab014ed9655ddc4de58a8ee28c87e1d3b556d0d8c8d7e61e1e8fa4e1",
 }
 
 export const spacetimeDBConnection = () => {
@@ -49,29 +49,37 @@ export const spacetimeDBConnection = () => {
 
 export const fetchSpacetimeIdentity = Effect.gen(function* () {
     const config = yield* (SpacetimeConfigTag);
-    const response = yield* (
-    Effect.tryPromise({
-      try: () =>
-        fetch(`${config.httpUri}/v1/identity`, { method: "POST" }),
-      catch: (e) => new Error("Failed to fetch identity: " + String(e))
-    })
-  );
-  if (!response.ok) {
-    return yield* Effect.fail(new Error(`Identity fetch failed: ${response.statusText}`));
-  }
-  const data = yield* (Effect.promise(() => response.json()));
-  return { identity: data.identity, token: data.token } as SpacetimeIdentity;
+    
+    console.error("🔧 Using manual SpacetimeDB identity:", config.identity);
+    return { identity: config.identity, token: "" } as SpacetimeIdentity;
+});
+
+export const fetchSpacetimeIdentityTwo = Effect.gen(function* () {
+  const config = yield* (SpacetimeConfigTag);
+  const response = yield* (
+  Effect.tryPromise({
+    try: () =>
+      fetch(`${config.httpUri}/v1/identity`, { method: "POST" }),
+    catch: (e) => new Error("Failed to fetch identity: " + String(e))
+  })
+);
+if (!response.ok) {
+  return yield* Effect.fail(new Error(`Identity fetch failed: ${response.statusText}`));
+}
+const data = yield* (Effect.promise(() => response.json()));
+return { identity: "", token: data.token } as SpacetimeIdentity;
 });
 
 export const connectToSpacetimeDB = Effect.gen(function* () {
     const config = yield* (SpacetimeConfigTag);
-    const {identity, token} = yield* (fetchSpacetimeIdentity);
+    const { identity } = yield* (fetchSpacetimeIdentity);
+    const { token } = yield* (fetchSpacetimeIdentityTwo);
     
     return yield* (
         Effect.async<DbConnection, Error>((resume) => {
             DbConnection.builder()
             .withUri(config.wsUri)
-            .withModuleName(config.moduleName)
+            .withModuleName(config.identity)
             .withToken(token)
             .onConnect((conn, a_identity) => {
                 if (a_identity.toHexString() !== identity) {

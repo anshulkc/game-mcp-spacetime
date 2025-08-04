@@ -10,7 +10,7 @@ import {
   Schedule,
   Schema,
 } from "effect"
-import { SpacetimeConfigTag, fetchSpacetimeIdentity } from "./connection_spacetime.js"
+import { SpacetimeConfigTag, fetchSpacetimeIdentity, fetchSpacetimeIdentityTwo } from "./connection_spacetime.js"
 
 
 const DatabaseName = Schema.String.annotations({
@@ -25,22 +25,30 @@ const ReducerName = Schema.String.annotations({
     description: "The name of the reducer function",
 })
 
+const HexIdentity = Schema.Struct({ __identity__: Schema.String });
+const HostType = Schema.Union(
+  Schema.Struct({ Wasm: Schema.Tuple() }),
+  Schema.Struct({ TypeScript: Schema.Tuple() }),
+  Schema.Struct({ Python: Schema.Tuple() })
+  // add new tags here as they appear
+);
+
 const DatabaseMetaDataSchema = Schema.Struct({
-    database_identity: Schema.String,
-    owner_identity: Schema.String,
-    host_type: Schema.String,
+    database_identity: HexIdentity,
+    owner_identity: HexIdentity,
+    host_type: HostType,
     initial_program: Schema.String
 }).annotations({
     description: "Metadata of a database module for get_database_status",
 })
 
-// TODO: thinking about adding adding indexes here (may be useful for the query_table tool)
+// TODO: thinking about adding adding indexes here (useful for the query_table tool)
 const TableSchema = Schema.Struct({
     name: Schema.String,
     product_type_ref: Schema.Number,
     primary_key: Schema.Array(Schema.Number),
     indexes: Schema.Array(Schema.Unknown),
-    constraints: Schema.Array(Schema.String),
+    constraints: Schema.Array(Schema.Unknown),
     sequences: Schema.Array(Schema.Unknown),
     schedule: Schema.Record({key: Schema.String, value: Schema.Array(Schema.Unknown)}),
     table_type: Schema.Record({key: Schema.String, value: Schema.Array(Schema.Unknown)}),
@@ -79,14 +87,15 @@ const TableSchema = Schema.Struct({
         })
       )
     }),
-    lifecycle: Lifecycle
+    lifecycle: Schema.Unknown
   }).annotations({
     description: "Reducer definition for get_database_interface"
   })
 
+
   const getDatabasesSchema = Schema.Struct({
-    addresses: Schema.Array(Schema.String)
-  })
+    identities: Schema.Array(Schema.String),
+  });
 
   const RawModuleDefJson = Schema.Struct({
     typespace: Schema.Unknown,          // or model it precisely later
@@ -106,8 +115,8 @@ const TableSchema = Schema.Struct({
 
   const ProductTypeSchema = Schema.Struct({
     elements: Schema.Array(Schema.Struct({
-        name: Schema.String,
-        algebraic_type: AlgebraicType
+        name: OptionSchema(Schema.String),
+        algebraic_type: Schema.Unknown
     }))
   }).annotations({
     description: "Product type for Rowset",
@@ -124,7 +133,7 @@ const TableSchema = Schema.Struct({
 
   // the 4 tools to query spacetimeDB
 
-  const toolkit = AiToolkit.make(
+  export const SpacetimeDBToolkit = AiToolkit.make(
     AiTool.make("list_databases", {
       description: "Listing all available database modules on a connected spacetimeDB instance (different servers for different regions)",
       success: Schema.Array(Schema.String),
@@ -154,8 +163,8 @@ const TableSchema = Schema.Struct({
         parameters: {
             db_name: DatabaseName,
             table_name: TableName,
-            columns: Schema.Array(Schema.String),
-            where: Schema.String,
+            columns: Schema.optional(Schema.Array(Schema.String)),
+            where: Schema.optional(Schema.String),
         }
     })
     .annotate(AiTool.Readonly, true)
@@ -175,11 +184,10 @@ const TableSchema = Schema.Struct({
 
 // Implementing the spacetimeDB tools
 
-const ToolkitLayer = toolkit.toLayer(
+export const ToolkitLayer = SpacetimeDBToolkit.toLayer(
     Effect.gen(function* () {
       const raw = yield* HttpClient.HttpClient
       const http = raw.pipe(
-        HttpClient.filterStatusOk,
         HttpClient.retry(
           Schedule.spaced(Duration.seconds(3)).pipe(
             Schedule.compose(Schedule.recurs(3))
@@ -187,7 +195,8 @@ const ToolkitLayer = toolkit.toLayer(
         )
       )
       const config = yield* SpacetimeConfigTag
-      const { token } = yield* fetchSpacetimeIdentity
+      const { identity } = yield* fetchSpacetimeIdentity
+      const { token } = yield* fetchSpacetimeIdentityTwo
 
 
     // included some caching here so that lookup calls aren't repeated if made in a short period of time
@@ -224,7 +233,7 @@ const ToolkitLayer = toolkit.toLayer(
         lookup: (db_name: string) =>
           Effect.gen(function* () {
             const res = yield* http.get(
-              `${config.httpUri}/v1/database/${db_name}/schema?version=9`
+              `${config.httpUri}/v1/database/${identity}/schema?version=9`
             )
             // RawModuleDef is big → keep as “unknown” and map later
 
@@ -243,7 +252,7 @@ const ToolkitLayer = toolkit.toLayer(
       ): Effect.Effect<readonly RowSet[], string, never> =>
         Effect.gen(function* ($) {
           return yield* HttpClientRequest.post(`${config.httpUri}/v1/database/${dbName}/sql`).pipe(
-            HttpClientRequest.setHeader("Authorization", `Bearer ${token}`),
+            HttpClientRequest.setHeader("Authorization", `Bearer ${'eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJoZXhfaWRlbnRpdHkiOiJjMjAwZWE2MmI0ZmQ3Y2ViM2VjZGQ3NmI3OGU0MDYwOGViNDdhYzY4MTMwZDVmNmRmMGVhZGU3YjAzNDU5YjhlIiwic3ViIjoiMTAzYjFjODctMTExMS00MDM2LTk3MzktMWE0MDI5NTkwNmUxIiwiaXNzIjoibG9jYWxob3N0IiwiYXVkIjpbInNwYWNldGltZWRiIl0sImlhdCI6MTc1NDI4ODI2OSwiZXhwIjpudWxsfQ.-U_DtKyFCKrUWU6BLexwd8erpMSaAWwtlxxhscP1iRqvnnxEM5pBh4Ttbz79S3Ie1u9_YNCTel1_787PLSoSTA'}`),
             HttpClientRequest.bodyText(sql, "text/plain"),
           ).pipe(
           http.execute,
@@ -264,22 +273,30 @@ const ToolkitLayer = toolkit.toLayer(
         }: {
           tableName: string
           columns?: readonly string[]
-          where?: string            // e.g. "age > 30 AND city = 'Rome'"
+          where?: string
         }) => {
-          const cols = columns?.length ? columns.map(c => "${c}").join(", ") : "*"
-          const predicate = where ? ` WHERE ${where}` : ""
-          return `SELECT ${cols} FROM "${tableName}"${predicate};`
-        }
+          const cols =
+            columns && columns.length
+              ? columns.map(c => `"${c}"`).join(", ")   // ✓ back-ticks → interpolates
+              : "*";
+        
+          const predicate = where && where.trim().length
+            ? ` WHERE ${where}`
+            : "";
+        
+          return `SELECT ${cols} FROM "${tableName}"${predicate};`;
+        };
+        
 
 
 
-    return toolkit.of({
+    return SpacetimeDBToolkit.of({
 
         // list_databases: Listing all available database modules on a connected spacetimeDB instance
         list_databases: () =>
-            http.get(`${config.httpUri}/v1/${token}/databases`).pipe(
+            http.get(`${config.httpUri}/v1/identity/${identity}/databases`).pipe(
               Effect.flatMap(HttpClientResponse.schemaBodyJson(getDatabasesSchema)),
-              Effect.map(res => res.addresses),
+              Effect.map(res => res.identities),
               Effect.mapError(err =>
                 typeof err === "string"
                   ? err
@@ -332,14 +349,19 @@ const ToolkitLayer = toolkit.toLayer(
           Effect.gen(function* ($) {
             // Build SQL from high-level params
 
-            const sql = buildSelectSql({ tableName: table_name, columns: columns, where: where })
+            const sql = buildSelectSql({ 
+              tableName: table_name, 
+              ...(columns && { columns }),
+              ...(where && { where }) 
+            })
+            console.log("▶ SQL:", sql);
+
         
             // Execute (re-using existing helper)
             const data   = yield* $(runSelectSql(db_name, sql))
         
             return data
           }).pipe(
-            // 3️⃣  Error‐shape identical to before
             Effect.mapError(err =>
               typeof err === "string"
                 ? err
@@ -364,6 +386,6 @@ const ToolkitLayer = toolkit.toLayer(
     )
   )
   
-  export const SpacetimeDBTools = McpServer.toolkit(toolkit).pipe(
+  export const SpacetimeDBTools = McpServer.toolkit(SpacetimeDBToolkit).pipe(
     Layer.provide(ToolkitLayer),
   )

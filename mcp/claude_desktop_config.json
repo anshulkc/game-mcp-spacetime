@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "spacetime-mcp": {
+      "command": "node mcp/dist/src/index.ts",
+      "env": {
+        "SPACETIMEDB_HTTP_URI": "http://localhost:3000",
+        "SPACETIMEDB_WS_URI": "ws://localhost:3000", 
+        "SPACETIMEDB_MODULE": "game_test"
+      }
+    }
+  }
+}

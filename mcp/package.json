@@ -47,7 +47,7 @@
     "@effect/build-utils": "^0.7.7",
     "@effect/eslint-plugin": "^0.2.0",
     "@effect/language-service": "^0.1.0",
-    "@effect/vitest": "latest",
+    "@effect/vitest": "^0.24.0",
     "@eslint/compat": "1.1.1",
     "@eslint/eslintrc": "3.1.0",
     "@eslint/js": "9.10.0",

@@ -2,9 +2,15 @@
   "extends": "./tsconfig.src.json",
   "compilerOptions": {
     "types": ["node"],
+
+    // 👇 disable the incremental build cache
+    "incremental": false,
+    "composite": false,
+
     "tsBuildInfoFile": ".tsbuildinfo/build.tsbuildinfo",
     "outDir": "build/esm",
     "declarationDir": "build/dts",
-    "stripInternal": true
+    "stripInternal": true,
+    "include": ["src/**/*.ts"]
   }
 }
