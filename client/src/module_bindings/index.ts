@@ -34,25 +34,25 @@ import {
 } from "@clockworklabs/spacetimedb-sdk";
 
 // Import and reexport all reducer arg types
-import { ClientConnected } from "./client_connected_reducer.ts";
+import { ClientConnected } from "./client_connected_reducer.js";
 export { ClientConnected };
-import { IdentityDisconnected } from "./identity_disconnected_reducer.ts";
+import { IdentityDisconnected } from "./identity_disconnected_reducer.js";
 export { IdentityDisconnected };
-import { SendMessage } from "./send_message_reducer.ts";
+import { SendMessage } from "./send_message_reducer.js";
 export { SendMessage };
-import { SetName } from "./set_name_reducer.ts";
+import { SetName } from "./set_name_reducer.js";
 export { SetName };
 
 // Import and reexport all table handle types
-import { MessageTableHandle } from "./message_table.ts";
+import { MessageTableHandle } from "./message_table.js";
 export { MessageTableHandle };
-import { UserTableHandle } from "./user_table.ts";
+import { UserTableHandle } from "./user_table.js";
 export { UserTableHandle };
 
 // Import and reexport all types
-import { Message } from "./message_type.ts";
+import { Message } from "./message_type.js";
 export { Message };
-import { User } from "./user_type.ts";
+import { User } from "./user_type.js";
 export { User };
 
 

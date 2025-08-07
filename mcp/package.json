@@ -15,10 +15,11 @@
   },
   "scripts": {
     "codegen": "build-utils prepare-v2",
-    "build": "pnpm build-esm && pnpm build-annotate && pnpm build-cjs && build-utils pack-v2",
+    "build": "pnpm build-esm && pnpm build-annotate && pnpm build-cjs && pnpm copy-client-bindings && build-utils pack-v2",
     "build-esm": "tsc -b tsconfig.build.json",
     "build-cjs": "babel build/esm --plugins @babel/transform-export-namespace-from --plugins @babel/transform-modules-commonjs --out-dir build/cjs --source-maps",
-    "build-annotate": "babel build/esm --plugins annotate-pure-calls --out-dir build/esm --source-maps",
+    "build-annotate": "babel build/esm --plugins annotate-pure-calls --out-dir build/esm --source-maps && echo '{\"type\": \"commonjs\"}' > build/esm/client/src/module_bindings/package.json",
+    "copy-client-bindings": "mkdir -p dist/client/src/module_bindings && cp -r build/esm/client/src/module_bindings/* dist/client/src/module_bindings/",
     "check": "tsc -b tsconfig.json",
     "lint": "eslint \"**/{src,test,examples,scripts,dtslint}/**/*.{ts,mjs}\"",
     "lint-fix": "pnpm lint --fix",

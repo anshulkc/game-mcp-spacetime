@@ -136,7 +136,9 @@ const TableSchema = Schema.Struct({
   export const SpacetimeDBToolkit = AiToolkit.make(
     AiTool.make("list_databases", {
       description: "Listing all available database modules on a connected spacetimeDB instance (different servers for different regions)",
-      success: Schema.Array(Schema.String),
+      success: Schema.Struct({
+        databases: Schema.Array(Schema.String)
+      }),
       failure: Schema.String,
       parameters: {},
     })
@@ -158,7 +160,9 @@ const TableSchema = Schema.Struct({
 
     AiTool.make("query_table", {
         description: "Performs read-only queries on database tables",
-        success: Schema.Array(RowSetSchema),
+        success: Schema.Struct({
+          results: Schema.Array(RowSetSchema)
+        }),
         failure: Schema.String,
         parameters: {
             db_name: DatabaseName,
@@ -294,7 +298,7 @@ export const ToolkitLayer = SpacetimeDBToolkit.toLayer(
         list_databases: () =>
             http.get(`${config.httpUri}/v1/identity/${identity}/databases`).pipe(
               Effect.flatMap(HttpClientResponse.schemaBodyJson(getDatabasesSchema)),
-              Effect.map(res => res.identities),
+              Effect.map(res => ({ databases: res.identities })),
               Effect.mapError(err =>
                 typeof err === "string"
                   ? err
@@ -358,7 +362,7 @@ export const ToolkitLayer = SpacetimeDBToolkit.toLayer(
             // Execute (re-using existing helper)
             const data   = yield* $(runSelectSql(db_name, sql))
         
-            return data
+            return { results: data }
           }).pipe(
             Effect.mapError(err =>
               typeof err === "string"

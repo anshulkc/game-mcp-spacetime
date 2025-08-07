@@ -2,7 +2,8 @@
 // you do this by using the /v1/identity endpoint to get the identity and token
 
 import { Effect, Console, Context } from "effect";
-import { DbConnection } from '../../client/src/module_bindings/index.js'
+import * as SpacetimeBindings from '../../client/src/module_bindings/index.js'
+const { DbConnection } = SpacetimeBindings
 
 
 export interface SpacetimeConfig {
@@ -54,29 +55,30 @@ export const fetchSpacetimeIdentity = Effect.gen(function* () {
     return { identity: config.identity, token: "" } as SpacetimeIdentity;
 });
 
-export const fetchSpacetimeIdentityTwo = Effect.gen(function* () {
-  const config = yield* (SpacetimeConfigTag);
-  const response = yield* (
-  Effect.tryPromise({
-    try: () =>
-      fetch(`${config.httpUri}/v1/identity`, { method: "POST" }),
-    catch: (e) => new Error("Failed to fetch identity: " + String(e))
-  })
-);
-if (!response.ok) {
-  return yield* Effect.fail(new Error(`Identity fetch failed: ${response.statusText}`));
-}
-const data = yield* (Effect.promise(() => response.json()));
-return { identity: "", token: data.token } as SpacetimeIdentity;
-});
+// export const fetchSpacetimeIdentityTwo = Effect.gen(function* () {
+//   const config = yield* (SpacetimeConfigTag);
+//   const response = yield* (
+//   Effect.tryPromise({
+//     try: () =>
+//       fetch(`${config.httpUri}/v1/identity`, { method: "POST" }),
+//     catch: (e) => new Error("Failed to fetch identity: " + String(e))
+//   })
+// );
+// if (!response.ok) {
+//   return yield* Effect.fail(new Error(`Identity fetch failed: ${response.statusText}`));
+// }
+// const data = yield* (Effect.promise(() => response.json()));
+// return { identity: "", token: data.token } as SpacetimeIdentity;
+// });
 
 export const connectToSpacetimeDB = Effect.gen(function* () {
     const config = yield* (SpacetimeConfigTag);
     const { identity } = yield* (fetchSpacetimeIdentity);
-    const { token } = yield* (fetchSpacetimeIdentityTwo);
+    // const { token } = yield* (fetchSpacetimeIdentityTwo);
+    const token = ""; // Using empty token for now
     
     return yield* (
-        Effect.async<DbConnection, Error>((resume) => {
+        Effect.async<InstanceType<typeof DbConnection>, Error>((resume) => {
             DbConnection.builder()
             .withUri(config.wsUri)
             .withModuleName(config.identity)

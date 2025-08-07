@@ -1,7 +1,8 @@
 {
   "mcpServers": {
-    "spacetime-mcp": {
-      "command": "node mcp/dist/src/index.ts",
+    "spacetime-tools": {
+      "command": "node",
+      "args": ["/Users/anshulkc/game-mcp-spacetime-1/mcp/dist/esm/src/index.js"],
       "env": {
         "SPACETIMEDB_HTTP_URI": "http://localhost:3000",
         "SPACETIMEDB_WS_URI": "ws://localhost:3000", 

@@ -1,10 +1,9 @@
 // test/toolkit.integration.test.ts
-import { describe, it, expect, vi } from "@effect/vitest";
+import { describe, it, vi } from "@effect/vitest";
 import { Effect } from "effect";
 
 import { SpacetimeDBToolkit } from "../src/spacetimedb.js";
 import { ToolkitTestLayer } from "./_layer.js";
-import { expectRight } from "./_utils.js";
 
 /* bump timeouts—first network hop may take >5 s on CI */
 vi.setConfig({ testTimeout: 10_000 });
