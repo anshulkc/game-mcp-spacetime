@@ -1,5 +1,6 @@
 {
   "extends": "./tsconfig.src.json",
+  "include": ["src/**/*.ts"],
   "compilerOptions": {
     "types": ["node"],
 
@@ -10,7 +11,6 @@
     "tsBuildInfoFile": ".tsbuildinfo/build.tsbuildinfo",
     "outDir": "build/esm",
     "declarationDir": "build/dts",
-    "stripInternal": true,
-    "include": ["src/**/*.ts"]
+    "stripInternal": true
   }
 }

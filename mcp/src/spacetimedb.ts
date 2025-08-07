@@ -10,7 +10,7 @@ import {
   Schedule,
   Schema,
 } from "effect"
-import { SpacetimeConfigTag, fetchSpacetimeIdentity, fetchSpacetimeIdentityTwo } from "./connection_spacetime.js"
+import { SpacetimeConfigTag, fetchSpacetimeIdentity } from "./connection_spacetime.js"
 
 
 const DatabaseName = Schema.String.annotations({
@@ -196,8 +196,6 @@ export const ToolkitLayer = SpacetimeDBToolkit.toLayer(
       )
       const config = yield* SpacetimeConfigTag
       const { identity } = yield* fetchSpacetimeIdentity
-      const { token } = yield* fetchSpacetimeIdentityTwo
-
 
     // included some caching here so that lookup calls aren't repeated if made in a short period of time
     // makes new cache
