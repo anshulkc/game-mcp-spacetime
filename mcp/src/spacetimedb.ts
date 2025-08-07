@@ -71,10 +71,10 @@ const TableSchema = Schema.Struct({
   )
   
   // Lifecycle := { <tag>: [] }   -- if that really is the shape
-  const Lifecycle = Schema.Record({
-    key: Schema.String,
-    value: Schema.Tuple()        // []  – empty array stands for unit
-  })
+  // const Lifecycle = Schema.Record({
+  //   key: Schema.String,
+  //   value: Schema.Tuple()        // []  – empty array stands for unit
+  // })
 
   export const ReducerSignature = Schema.Struct({
     /** Reducer identifier inside the module */
