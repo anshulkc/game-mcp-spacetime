@@ -3,6 +3,8 @@
 
 import { Effect, Console, Context } from "effect";
 import * as SpacetimeBindings from '../../client/src/module_bindings/index.js'
+import type { ErrorContext } from '../../client/src/module_bindings/index.js'
+import type { Identity } from "@clockworklabs/spacetimedb-sdk";
 const { DbConnection } = SpacetimeBindings
 
 
@@ -83,14 +85,14 @@ export const connectToSpacetimeDB = Effect.gen(function* () {
             .withUri(config.wsUri)
             .withModuleName(config.identity)
             .withToken(token)
-            .onConnect((conn, a_identity) => {
+            .onConnect((conn: InstanceType<typeof DbConnection>, a_identity: Identity) => {
                 if (a_identity.toHexString() !== identity) {
                   resume(Effect.fail(new Error("Identity mismatch")));
                 } else {
                     resume(Effect.succeed(conn));
                 }
               })
-              .onConnectError((_ctx, err) => {
+              .onConnectError((_ctx: ErrorContext, err: Error) => {
                 resume(Effect.fail(new Error(`Connection failed: ${err.message}`)));
               })
               .onDisconnect(() => {

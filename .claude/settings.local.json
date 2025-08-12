@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(pnpm check:*)"
+      "Bash(pnpm check:*)",
+      "mcp__spacetime-tools__list_databases"
     ],
     "deny": []
   }
