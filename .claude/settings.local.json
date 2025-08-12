@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(pnpm check:*)",
-      "mcp__spacetime-tools__list_databases"
+      "mcp__spacetime-tools__list_databases",
+      "mcp__spacetime-tools__get_database_interface",
+      "mcp__spacetime-tools__query_table",
+      "mcp__spacetime-tools__get_database_status"
     ],
     "deny": []
   }
