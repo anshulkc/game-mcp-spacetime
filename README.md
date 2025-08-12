@@ -16,8 +16,11 @@ A Model Context Protocol (MCP) server for SpacetimeDB integration.
    ```
 
 3. **Start SpacetimeDB:**
-   ```bash
    # Make sure SpacetimeDB is running on localhost:3000
+
+   ```bash
+   spacetime start
+   spacetime login
    ```
 
 ## Claude Integration
