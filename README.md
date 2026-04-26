@@ -4,14 +4,14 @@ A Model Context Protocol (MCP) server for SpacetimeDB integration. Currently sup
 
 Spacetime MCP Tools available:
 
-  - list_databases - Lists all available database
+  - `list_databases` - Lists all available database
   modules
-  - get_database_interface - Gets full
+  - `get_database_interface` - Gets full
   interface/metadata for a database including tables,
   schemas, and reducers
-  - query_table - Performs read-only queries on
+  - `query_table` - Performs read-only queries on
   database tables
-  - get_database_status - Checks health and status of a
+  - `get_database_status` - Checks health and status of a
    database module
 
 
